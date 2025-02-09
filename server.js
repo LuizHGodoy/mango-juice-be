@@ -31,6 +31,7 @@ class Room {
 		this.currentTask = null;
 		this.revealed = false;
 		this.history = [];
+		this.messages = [];
 	}
 
 	addParticipant(id, name) {
@@ -51,6 +52,16 @@ class Room {
 		this.revealed = false;
 	}
 
+	addMessage(senderId, senderName, content) {
+		this.messages.push({
+			id: uuidv4(),
+			senderId,
+			senderName,
+			content,
+			timestamp: new Date().toISOString(),
+		});
+	}
+
 	getState() {
 		return {
 			participants: Array.from(this.participants.values()),
@@ -69,6 +80,7 @@ class Room {
 					),
 			revealed: this.revealed,
 			currentTask: this.currentTask,
+			messages: this.messages.slice(-50),
 			name: this.name,
 		};
 	}
@@ -178,6 +190,13 @@ io.on("connection", (socket) => {
 			}
 			io.to(currentRoom.id).emit("room_state", currentRoom.getState());
 		}, 3000);
+	});
+
+	socket.on("send_message", ({ message }) => {
+		if (!currentRoom || !participantName) return;
+
+		currentRoom.addMessage(socket.id, participantName, message);
+		io.to(currentRoom.id).emit("room_state", currentRoom.getState());
 	});
 
 	socket.on("disconnect", () => {
